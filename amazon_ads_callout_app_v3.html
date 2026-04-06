@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080808;--s1:#111;--s2:#171717;--s3:#1f1f1f;
+  --b1:#2a2a2a;--b2:#333;--b3:#444;
+  --accent:#f97316;--accent2:#fb923c;
+  --ok:#22c55e;--err:#ef4444;
+  --t1:#f5f5f5;--t2:#aaa;--t3:#666;
+  --mono:'IBM Plex Mono',monospace;--sans:'IBM Plex Sans',sans-serif;
+}
+body{font-family:var(--sans);background:var(--bg);color:var(--t1);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 16px 48px}
+.wrap{width:100%;max-width:660px}
+.hdr{text-align:center;margin-bottom:24px}
+.hdr-badge{display:inline-flex;align-items:center;gap:6px;background:rgba(249,115,22,.12);border:1px solid rgba(249,115,22,.3);color:var(--accent2);font-size:10px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:3px 10px;border-radius:20px;margin-bottom:12px;font-family:var(--mono)}
+.hdr h1{font-size:22px;font-weight:600;letter-spacing:-.02em;color:var(--t1)}
+.hdr p{font-size:12px;color:var(--t2);margin-top:6px}
+.card{background:var(--s1);border:1px solid var(--b1);border-radius:14px;padding:24px;width:100%}
+.step-bar{display:flex;align-items:center;margin-bottom:24px}
+.si{display:flex;align-items:center;gap:7px;flex:1}
+.sd{width:26px;height:26px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:600;font-family:var(--mono);flex-shrink:0;transition:all .2s}
+.sd.off{background:var(--s3);color:var(--t3);border:1px solid var(--b1)}
+.sd.on{background:var(--accent);color:#fff}
+.sd.done{background:rgba(34,197,94,.15);color:var(--ok);border:1px solid rgba(34,197,94,.3)}
+.sl{font-size:11px;font-weight:500}
+.sl.off{color:var(--t3)}.sl.on{color:var(--t1)}.sl.done{color:var(--ok)}
+.sline{flex:1;height:1px;background:var(--b1);margin:0 6px}
+.sec-title{font-size:14px;font-weight:600;color:var(--t1);margin-bottom:3px}
+.sec-sub{font-size:11px;color:var(--t2);margin-bottom:18px}
+.dz{border:1.5px dashed var(--b3);border-radius:10px;padding:13px;cursor:pointer;transition:all .2s;display:flex;align-items:center;gap:10px;margin-bottom:8px;background:var(--s2)}
+.dz:hover{border-color:var(--accent);background:rgba(249,115,22,.06)}
+.dz.drag{border-color:var(--accent);background:rgba(249,115,22,.1)}
+.dz.ok{border-color:rgba(34,197,94,.4);background:rgba(34,197,94,.05)}
+.dz.opt{border-style:dotted}
+.di{width:34px;height:34px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;background:var(--s3);border:1px solid var(--b2)}
+.dz.ok .di{background:rgba(34,197,94,.1);border-color:rgba(34,197,94,.3)}
+.dt{flex:1;min-width:0}
+.dl{font-size:12px;font-weight:500;color:var(--t1)}
+.dh{font-size:11px;color:var(--t3);margin-top:2px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dz.ok .dh{color:var(--ok)}
+.field{margin-bottom:12px}
+.field label{display:block;font-size:10px;font-weight:500;color:var(--t2);margin-bottom:5px;letter-spacing:.06em;text-transform:uppercase;font-family:var(--mono)}
+.field input,.field textarea{width:100%;background:var(--s2);border:1px solid var(--b2);border-radius:8px;padding:9px 11px;font-size:12px;color:var(--t1);font-family:var(--sans);outline:none;transition:border-color .2s;resize:none}
+.field input::placeholder,.field textarea::placeholder{color:var(--t3)}
+.field input:focus,.field textarea:focus{border-color:var(--accent)}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+/* ── BUTTONS ── */
+.btn{padding:10px 20px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;border:none;font-family:var(--sans);letter-spacing:.01em;width:100%;display:inline-flex;align-items:center;justify-content:center;gap:6px}
+
+/* Primary — solid orange */
+.btn-p{background:var(--accent);color:#fff;border:none}
+.btn-p:hover{background:#ea580c;transform:translateY(-1px)}
+.btn-p:disabled{opacity:.4;transform:none;cursor:not-allowed}
+
+/* Secondary — visible outline with white text */
+.btn-s{background:var(--s3);color:var(--t1);border:1.5px solid var(--b3)}
+.btn-s:hover{background:var(--b1);border-color:var(--t2);color:#fff}
+
+/* Orange outline — for "Next Brand" and "Copy All" type actions */
+.btn-o{background:transparent;color:var(--accent2);border:1.5px solid var(--accent);font-weight:600}
+.btn-o:hover{background:rgba(249,115,22,.12);color:#fff;border-color:var(--accent2)}
+
+/* Green success state */
+.btn-ok{background:rgba(34,197,94,.15);color:var(--ok);border:1.5px solid rgba(34,197,94,.4);font-weight:600}
+
+.btn-sm{padding:7px 16px;width:auto;font-size:12px}
+.btn-row{display:grid;grid-template-columns:1fr 2fr;gap:8px;margin-top:18px}
+
+.err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#fca5a5;font-size:11px;padding:9px 11px;border-radius:7px;margin-top:12px;font-family:var(--mono)}
+.out-brand{font-size:16px;font-weight:600;color:var(--t1)}
+.out-mon{font-size:11px;color:var(--t3);margin-top:2px;font-family:var(--mono)}
+.out-box{background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:16px;font-family:var(--mono);font-size:11px;line-height:1.9;color:var(--t1);white-space:pre-wrap;overflow-y:auto;max-height:440px;margin-top:14px}
+.out-box .sh{color:var(--accent2);font-weight:500}
+.out-box .bl{color:#67e8f9}
+.spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .65s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.bottom-btn-row{margin-top:16px;display:flex;justify-content:center}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hdr">
+    <div class="hdr-badge">⚡ pltfrm</div>
+    <h1>Amazon Ads Monthly Callout</h1>
+    <p>Upload campaign & search term data to generate formatted performance callouts</p>
+  </div>
+  <div class="card" id="card">
+    <div class="step-bar" id="step-bar"></div>
+    <div id="content"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+let S={step:1,campFile:null,spFile:null,sbFile:null,intake:{brand:'',dsp:'',kpiTarget:'',kpiActual:'',forecastRevenue:'',actualRevenue:'',coreStrategies:'',actionItems:''},output:'',calloutMonth:'',loading:false,error:'',copied:false};
+
+const cleanMoney=s=>{const v=parseFloat(String(s??'').replace(/[$,\s]/g,''));return isNaN(v)||v<0?0:v};
+const isBranded=n=>/\|\s*b\s*\|/i.test(String(n));
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+const normRows=rows=>rows.map(r=>Object.fromEntries(Object.entries(r).map(([k,v])=>[k.replace(/^\uFEFF/,'').trim(),v])));
+const getCol=(obj,cands)=>{const keys=Object.keys(obj);for(const c of cands){const f=keys.find(k=>k.toLowerCase()===c.toLowerCase());if(f!==undefined)return f;}return null};
+
+const ASIN=/B0[A-Z0-9]{8}/i,ASIN_X=/^B0[A-Z0-9]{8}$/i,MAN=new Set(['EXACT','PHRASE','BROAD']);
+const MNS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MAB={jan:0,feb:1,mar:2,apr:3,may:4,jun:5,jul:6,aug:7,sep:8,oct:9,nov:10,dec:11};
+
+function toJSDate(val){
+  if(!val&&val!==0)return null;
+  if(val instanceof Date)return isNaN(val)?null:val;
+  const s=String(val).trim();if(!s)return null;
+  const mdy=s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(mdy){const d=new Date(parseInt(mdy[3]),parseInt(mdy[1])-1,parseInt(mdy[2]));return isNaN(d)?null:d;}
+  const ymd=s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(ymd){const d=new Date(parseInt(ymd[1]),parseInt(ymd[2])-1,parseInt(ymd[3]));return isNaN(d)?null:d;}
+  const n=parseFloat(s);
+  if(!isNaN(n)&&n>40000&&n<60000)return new Date(Math.round((n-25569)*86400000));
+  const d=new Date(s);return isNaN(d)?null:d;
+}
+
+function inferCallout(fname){
+  const m=fname.match(/_(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)_?/i);
+  const y=fname.match(/(\d{4})/);
+  if(m&&y){const fm=MAB[m[1].toLowerCase()],fy=parseInt(y[1]);return fm===0?{year:fy-1,month:11}:{year:fy,month:fm-1};}
+  const n=new Date();return n.getMonth()===0?{year:n.getFullYear()-1,month:11}:{year:n.getFullYear(),month:n.getMonth()-1};
+}
+
+async function parseFile(file){
+  return new Promise((res,rej)=>{
+    const fr=new FileReader();
+    fr.onload=e=>{
+      try{
+        const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array',cellDates:true,raw:false});
+        const ws=wb.Sheets[wb.SheetNames[0]];
+        res(normRows(XLSX.utils.sheet_to_json(ws,{defval:'',raw:false})));
+      }catch(err){rej(err);}
+    };
+    fr.onerror=rej;fr.readAsArrayBuffer(file);
+  });
+}
+
+async function compute(){
+  const{campFile,spFile,sbFile,intake}=S;
+  const[campRaw,spRaw,sbRaw]=await Promise.all([parseFile(campFile),parseFile(spFile),sbFile?parseFile(sbFile):Promise.resolve([])]);
+
+  const c0=campRaw[0]||{};
+  const cC=getCol(c0,['Country','Marketplace']),cN=getCol(c0,['Campaign name','Campaign Name','Campaigns']);
+  const cSp=getCol(c0,['Total cost','Total cost (converted)','Spend']),cSa=getCol(c0,['Sales','Sales (converted)','7 Day Total Sales','14 Day Total Sales']);
+  const cT=getCol(c0,['Targeting','Targeting Type']),cD=getCol(c0,['Campaign start date','Created Date','Start Date','Launch Date']);
+
+  let camp=campRaw;
+  if(cC)camp=camp.filter(r=>String(r[cC]).trim()==='United States');
+  camp=camp.map(r=>({name:String(r[cN]||''),spend:cleanMoney(r[cSp]),sales:cleanMoney(r[cSa]),targeting:String(r[cT]||'').toUpperCase().trim(),startRaw:r[cD]??'',branded:isBranded(String(r[cN]||''))}));
+
+  const totalPPC=camp.reduce((s,r)=>s+r.spend,0);
+  const dsp=cleanMoney(intake.dsp),totalAd=totalPPC+dsp;
+  const bSp=camp.filter(r=>r.branded).reduce((s,r)=>s+r.spend,0);
+  const nbSpTot=camp.filter(r=>!r.branded).reduce((s,r)=>s+r.spend,0);
+  const autoSp=camp.filter(r=>r.targeting==='AUTOMATIC').reduce((s,r)=>s+r.spend,0);
+  const manSp=camp.filter(r=>r.targeting==='MANUAL').reduce((s,r)=>s+r.spend,0);
+
+  const nbC=camp.filter(r=>!r.branded&&r.spend>0).map(r=>({...r,roas:r.sales/r.spend}));
+  const nbSa=nbC.reduce((s,r)=>s+r.sales,0),nbSp=nbC.reduce((s,r)=>s+r.spend,0);
+  const avgROAS=nbSp>0?nbSa/nbSp:0;
+
+  const pct5=nbSp*0.05;
+  let topNB=nbC.filter(r=>r.roas>avgROAS&&r.spend>=pct5).sort((a,b)=>b.roas-a.roas||b.spend-a.spend);
+  if(topNB.length<3){const u=new Set(topNB.map(r=>r.name));const f=nbC.filter(r=>!u.has(r.name)).sort((a,b)=>b.roas-a.roas||b.spend-a.spend);topNB=[...topNB,...f].slice(0,3);}
+  else topNB=topNB.slice(0,3);
+
+  let wNB=nbC.filter(r=>r.spend>=50).sort((a,b)=>a.roas-b.roas||b.spend-a.spend);
+  if(wNB.length<3){const u=new Set(wNB.map(r=>r.name));const f=nbC.filter(r=>r.spend>=25&&!u.has(r.name)).sort((a,b)=>a.roas-b.roas);wNB=[...wNB,...f].slice(0,3);}
+  else wNB=wNB.slice(0,3);
+
+  const cal=inferCallout(campFile.name);
+  const calS=new Date(cal.year,cal.month,1),calE=new Date(cal.year,cal.month+1,0,23,59,59);
+  const calLabel=`${MNS[cal.month]} ${cal.year}`;
+  const seenN=new Set(),newCamps=[];
+  if(cD){
+    [...camp].sort((a,b)=>{
+      const ta=(toJSDate(a.startRaw)||{getTime:()=>Infinity}).getTime(),tb=(toJSDate(b.startRaw)||{getTime:()=>Infinity}).getTime();
+      return ta-tb||a.name.localeCompare(b.name);
+    }).forEach(r=>{
+      if(!r.startRaw||seenN.has(r.name))return;
+      const d=toJSDate(r.startRaw);
+      if(d&&d>=calS&&d<=calE){newCamps.push(r.name);seenN.add(r.name);}
+    });
+  }
+
+  const s0=spRaw[0]||{};
+  const sCo=getCol(s0,['Country','Marketplace']);
+  let spF=sCo?spRaw.filter(r=>String(r[sCo]).trim()==='United States'):spRaw;
+  const sCS=getCol(s0,['Customer Search Term','Search Term']),sMT=getCol(s0,['Match Type']);
+  const sTg=getCol(s0,['Targeting','Targeting Expression']),sSp=getCol(s0,['Spend']);
+  const sSa=getCol(s0,['7 Day Total Sales','14 Day Total Sales']);
+  const spD=spF.map(r=>({cst:String(r[sCS]||''),mt:String(r[sMT]||'').toUpperCase().trim(),tg:String(r[sTg]||''),sp:cleanMoney(r[sSp]),sa:cleanMoney(r[sSa])}));
+
+  const sbD=[];
+  if(sbRaw.length>0){
+    const b0=sbRaw[0];
+    const bTg=getCol(b0,['Targeting','Targeting Expression']),bMT=getCol(b0,['Match Type']),bSp=getCol(b0,['Spend']),bSa=getCol(b0,['14 Day Total Sales','7 Day Total Sales']);
+    sbRaw.forEach(r=>sbD.push({cst:String(r[bTg]||''),mt:String(r[bMT]||'').toUpperCase().trim(),tg:String(r[bTg]||''),sp:cleanMoney(r[bSp]),sa:cleanMoney(r[bSa])}));
+  }
+
+  const comb=[...spD,...sbD].map(r=>{
+    const t=r.tg.toLowerCase(),c=r.cst.toLowerCase();
+    const isPAT=ASIN.test(t)||t.includes('asin=')||t.includes('category=')||ASIN.test(c);
+    return{...r,isPAT,isKW:MAN.has(r.mt)&&!isPAT};
+  });
+
+  const patSp=comb.filter(r=>r.isPAT).reduce((s,r)=>s+r.sp,0);
+  const kwSp=comb.filter(r=>r.isKW).reduce((s,r)=>s+r.sp,0);
+  const pkD=patSp+kwSp;
+  const mSTR=comb.filter(r=>MAN.has(r.mt)),mtD=mSTR.reduce((s,r)=>s+r.sp,0);
+  const exSp=mSTR.filter(r=>r.mt==='EXACT').reduce((s,r)=>s+r.sp,0);
+  const phSp=mSTR.filter(r=>r.mt==='PHRASE').reduce((s,r)=>s+r.sp,0);
+  const brSp=mSTR.filter(r=>r.mt==='BROAD').reduce((s,r)=>s+r.sp,0);
+
+  const bLow=intake.brand.toLowerCase().replace(/[-\s]/g,'');
+  const nbSTR=comb.filter(r=>{const c=r.cst.toLowerCase().replace(/[-\s]/g,'');return!c.includes(bLow)&&!ASIN_X.test(r.cst)&&r.cst.trim()!=='';});
+  const cA={};nbSTR.forEach(r=>{if(!cA[r.cst])cA[r.cst]={sp:0,sa:0};cA[r.cst].sp+=r.sp;cA[r.cst].sa+=r.sa;});
+  const topT=Object.entries(cA).map(([cst,v])=>({cst,...v})).sort((a,b)=>b.sp-a.sp).slice(0,3);
+
+  const P=(v,d)=>d>0?`${(v/d*100).toFixed(2)}%`:'0.00%';
+  const M=v=>`$${Math.round(v).toLocaleString()}`;
+  const R=v=>v.toFixed(2);
+  const fR=v=>{const n=cleanMoney(v);return n>0?M(n):v;};
+  const bulls=t=>{if(!t||t.trim().toLowerCase()==='n/a'||!t.trim())return['N/A'];const ss=t.match(/[^.!?]+[.!?]+(?:\s|$)|[^.!?]+$/g)||[t];return ss.map(s=>s.trim()).filter(Boolean);};
+
+  let out='';const L=(s='')=>{out+=s+'\n\n';};
+  L('==== CORE STRATEGIES ====');bulls(intake.coreStrategies).forEach(s=>L(`• ${s}`));
+  L('==== PACING ====');
+  L(`Monthly Goal: ${intake.kpiTarget}`);L(`Forecasted Revenue: ${fR(intake.forecastRevenue)}`);
+  L(`Actual Monthly Outcome: ${intake.kpiActual}`);L(`Actual Revenue: ${fR(intake.actualRevenue)}`);
+  L(`Total Non-branded ROAS: ${R(avgROAS)}`);
+  L('==== TOP SPENDING SEARCH TERMS (NON-BRANDED ONLY) AND PURCHASE SHARE ====');
+  topT.forEach(t=>{L(`${t.cst} — Spend: ${M(t.sp)}; Revenue: ${M(t.sa)} — Impression/Purchase Share:`);L('Last Month:');});
+  L('==== SPEND BREAKDOWN ====');
+  L('Branded vs. Non-branded');L(`Branded: ${P(bSp,totalPPC)}`);L(`Non-branded: ${P(nbSpTot,totalPPC)}`);
+  L('Product/Category Targeting vs. Keyword Targeting');L(`Product/Category: ${P(patSp,pkD)}`);L(`Keyword: ${P(kwSp,pkD)}`);
+  L('Match Type');L(`Exact: ${P(exSp,mtD)}`);L(`Phrase: ${P(phSp,mtD)}`);L(`Broad: ${P(brSp,mtD)}`);
+  L('Auto Campaign vs Manual Campaign');L(`Auto: ${P(autoSp,totalPPC)}`);L(`Manual: ${P(manSp,totalPPC)}`);
+  if(dsp>0){L('DSP vs PPC');L(`DSP: ${P(dsp,totalAd)}`);L(`PPC: ${P(totalPPC,totalAd)}`);}
+  L('==== TOP NON-BRANDED CAMPAIGNS ====');topNB.forEach(c=>L(`${c.name}: ROAS ${R(c.roas)}`));
+  L('==== WORST NON-BRANDED CAMPAIGNS ====');wNB.forEach(c=>L(`${c.name}: ROAS ${R(c.roas)}`));
+  L('==== NEW CAMPAIGNS CREATED DURING THE MONTH ====');
+  if(newCamps.length===0)L('None');else newCamps.forEach(n=>L(n));
+  L('==== STRATEGIC ACTION ITEMS FOR NEXT MONTH ====');bulls(intake.actionItems).forEach(s=>L(`• ${s}`));
+
+  return{output:out.trim(),calloutMonth:calLabel};
+}
+
+function render(){renderBar();renderContent();}
+
+function renderBar(){
+  const steps=['Upload Files','Brand Info','Output'];
+  const bar=document.getElementById('step-bar');bar.innerHTML='';
+  steps.forEach((lbl,i)=>{
+    const n=i+1,st=S.step>n?'done':S.step===n?'on':'off';
+    const dot=document.createElement('div');dot.className='si';
+    dot.innerHTML=`<div class="sd ${st}">${st==='done'?'✓':n}</div><span class="sl ${st}">${lbl}</span>`;
+    bar.appendChild(dot);
+    if(i<steps.length-1){const ln=document.createElement('div');ln.className='sline';bar.appendChild(ln);}
+  });
+}
+
+function renderContent(){
+  const el=document.getElementById('content');
+  if(S.step===1)el.innerHTML=step1();
+  else if(S.step===2)el.innerHTML=step2();
+  else el.innerHTML=step3();
+  bind();
+}
+
+function dz(id,lbl,file,opt=false){
+  return`<div class="dz ${file?'ok':''} ${opt?'opt':''}" data-dz="${id}">
+    <div class="di">${file?'✓':'◻'}</div>
+    <div class="dt"><div class="dl">${lbl}</div><div class="dh">${file?esc(file.name):opt?'Optional — click or drag':'Click or drag to upload'}</div></div>
+    <input type="file" id="fi-${id}" accept="${id==='camp'?'.csv':'.xlsx,.xls,.csv'}" style="display:none">
+  </div>`;
+}
+
+function step1(){
+  return`<div class="sec-title">Upload Files</div>
+  <div class="sec-sub">US data only · SB STR is optional but recommended</div>
+  ${dz('camp','Campaigns File (.csv)',S.campFile)}
+  ${dz('sp','SP Search Term Report (.xlsx)',S.spFile)}
+  ${dz('sb','SB Search Term Report (.xlsx)',S.sbFile,true)}
+  ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
+  <button class="btn btn-p" id="s1next" style="margin-top:18px">Continue →</button>`;
+}
+
+function step2(){
+  const I=S.intake;
+  const fi=(key,lbl,ph)=>`<div class="field"><label>${lbl}</label><input data-key="${key}" value="${esc(I[key])}" placeholder="${ph}"></div>`;
+  const ta=(key,lbl,ph)=>`<div class="field"><label>${lbl}</label><textarea rows="3" data-key="${key}" placeholder="${ph}">${esc(I[key])}</textarea></div>`;
+  return`<div class="sec-title">Brand Info</div>
+  <div class="sec-sub">Fill in the details for this month's callout</div>
+  ${fi('brand','Brand Name *','e.g. Black Wolf')}
+  ${fi('dsp','DSP Spend This Month','e.g. 8760.77 — leave blank if none')}
+  <div class="frow">${fi('kpiTarget','KPI Target *','e.g. 20% TACoS')}${fi('kpiActual','KPI Actual *','e.g. 19.4% TACoS')}</div>
+  <div class="frow">${fi('forecastRevenue','Forecasted Revenue *','e.g. $375,000')}${fi('actualRevenue','Actual Revenue *','e.g. $332,000')}</div>
+  ${ta('coreStrategies','Core Strategies for the Month','Each sentence → its own bullet. Enter N/A if none.')}
+  ${ta('actionItems','Strategic Action Items for Next Month','Each sentence → its own bullet. Enter N/A if none.')}
+  ${S.error?`<div class="err">${esc(S.error)}</div>`:''}
+  <div class="btn-row">
+    <button class="btn btn-s" id="s2back">← Back</button>
+    <button class="btn btn-p" id="s2gen" ${S.loading?'disabled':''}>
+      ${S.loading?'<span class="spin"></span> Processing...':'Generate Callout'}
+    </button>
+  </div>`;
+}
+
+function hl(text){
+  return esc(text)
+    .replace(/(====.*?====)/g,'<span class="sh">$1</span>')
+    .replace(/(^• )/gm,'<span class="bl">• </span>');
+}
+
+function step3(){
+  return`<div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+    <div>
+      <div class="out-brand">${esc(S.intake.brand)}</div>
+      <div class="out-mon">${S.calloutMonth} callout</div>
+    </div>
+    <button class="btn btn-o btn-sm ${S.copied?'btn-ok':''}" id="copybtn" style="flex-shrink:0">
+      ${S.copied?'✓ Copied!':'Copy All'}
+    </button>
+  </div>
+  <div class="out-box">${hl(S.output)}</div>
+  <div class="bottom-btn-row">
+    <button class="btn btn-o" id="nextbrand" style="max-width:220px">Next Brand →</button>
+  </div>`;
+}
+
+function bind(){
+  if(S.step===1){
+    ['camp','sp','sb'].forEach(id=>{
+      const zone=document.querySelector(`[data-dz="${id}"]`),inp=document.getElementById(`fi-${id}`);
+      if(!zone||!inp)return;
+      zone.addEventListener('click',()=>inp.click());
+      zone.addEventListener('dragover',e=>{e.preventDefault();zone.classList.add('drag');});
+      zone.addEventListener('dragleave',()=>zone.classList.remove('drag'));
+      zone.addEventListener('drop',e=>{e.preventDefault();zone.classList.remove('drag');if(e.dataTransfer.files[0])setF(id,e.dataTransfer.files[0]);});
+      inp.addEventListener('change',e=>{if(e.target.files[0])setF(id,e.target.files[0]);});
+    });
+    document.getElementById('s1next')?.addEventListener('click',()=>{
+      if(!S.campFile||!S.spFile){S.error='Campaigns and SP STR files are required.';render();return;}
+      S.error='';S.step=2;render();
+    });
+  }
+  if(S.step===2){
+    document.querySelectorAll('[data-key]').forEach(el=>el.addEventListener('input',e=>{S.intake[e.target.dataset.key]=e.target.value;}));
+    document.getElementById('s2back')?.addEventListener('click',()=>{S.error='';S.step=1;render();});
+    document.getElementById('s2gen')?.addEventListener('click',gen);
+  }
+  if(S.step===3){
+    document.getElementById('copybtn')?.addEventListener('click',()=>{
+      navigator.clipboard.writeText(S.output).then(()=>{S.copied=true;render();setTimeout(()=>{S.copied=false;render();},2000);});
+    });
+    document.getElementById('nextbrand')?.addEventListener('click',()=>{
+      S={step:1,campFile:null,spFile:null,sbFile:null,intake:{brand:'',dsp:'',kpiTarget:'',kpiActual:'',forecastRevenue:'',actualRevenue:'',coreStrategies:'',actionItems:''},output:'',calloutMonth:'',loading:false,error:'',copied:false};
+      render();
+    });
+  }
+}
+
+function setF(id,file){if(id==='camp')S.campFile=file;else if(id==='sp')S.spFile=file;else S.sbFile=file;S.error='';render();}
+
+async function gen(){
+  const I=S.intake;
+  if(!I.brand.trim()){S.error='Brand name is required.';render();return;}
+  if(!I.kpiTarget.trim()||!I.kpiActual.trim()){S.error='KPI target and actual are required.';render();return;}
+  if(!I.forecastRevenue.trim()||!I.actualRevenue.trim()){S.error='Revenue figures are required.';render();return;}
+  S.error='';S.loading=true;render();
+  try{const r=await compute();S.output=r.output;S.calloutMonth=r.calloutMonth;S.step=3;}
+  catch(e){S.error=`Processing error: ${e.message}`;}
+  finally{S.loading=false;render();}
+}
+
+render();
+</script>
+</body>
+</html>
