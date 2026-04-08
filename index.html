@@ -109,19 +109,13 @@ var S={
   output:'',calloutMonthLabel:'',loading:false,error:'',copied:false
 };
 
-// ── Robust money parser ──
-// Strips everything except digits, dots, and leading minus, then parses.
-// Returns 0 for anything that still fails or is negative.
 function cleanMoney(s){
   if(s===null||s===undefined)return 0;
-  var str=String(s)
-    .replace(/[^\d.\-]/g,'')   // keep only digits, dot, minus
-    .replace(/(?!^)-/g,'');    // remove any minus not at start
+  var str=String(s).replace(/[^\d.\-]/g,'').replace(/(?!^)-/g,'');
   var v=parseFloat(str);
   return(isNaN(v)||v<0)?0:v;
 }
 
-// ── NaN-safe add for reduce ──
 function safeAdd(a,b){
   var av=isNaN(a)?0:a;
   var bv=isNaN(b)?0:b;
@@ -216,7 +210,10 @@ async function compute(){
   var cD=getCol(c0,['Campaign start date','Created Date','Start Date','Launch Date']);
 
   var camp=campRaw;
-  if(cC)camp=camp.filter(function(r){return String(r[cC]).trim()==='United States';});
+  if(cC)camp=camp.filter(function(r){return String(r[cC]).trim().toLowerCase()==='united states';});
+  // Fallback: if filter removed everything, use all rows
+  if(camp.length===0)camp=campRaw;
+
   camp=camp.map(function(r){return{
     name:String(r[cN]||''),
     spend:cleanMoney(r[cSp]),
@@ -226,11 +223,17 @@ async function compute(){
     branded:isBranded(String(r[cN]||''))
   };});
 
-  // NaN-safe reducers
   var totalPPC=camp.reduce(function(s,r){return safeAdd(s,r.spend);},0);
   var dsp=cleanMoney(intake.dsp),totalAd=safeAdd(totalPPC,dsp);
-  var bSp=camp.filter(function(r){return r.branded;}).reduce(function(s,r){return safeAdd(s,r.spend);},0);
+
+  // Non-branded spend (always calculated from NB campaigns)
   var nbSpTot=camp.filter(function(r){return !r.branded;}).reduce(function(s,r){return safeAdd(s,r.spend);},0);
+
+  // Branded spend: primary = sum of | b | campaigns
+  // Fallback: if result is 0, derive from totalPPC - nbSpTot
+  var bSpPrimary=camp.filter(function(r){return r.branded;}).reduce(function(s,r){return safeAdd(s,r.spend);},0);
+  var bSp=bSpPrimary>0?bSpPrimary:safeAdd(totalPPC,-nbSpTot);
+
   var autoSp=camp.filter(function(r){return isAuto(r.targetingRaw);}).reduce(function(s,r){return safeAdd(s,r.spend);},0);
   var manSp=camp.filter(function(r){return isManual(r.targetingRaw);}).reduce(function(s,r){return safeAdd(s,r.spend);},0);
 
@@ -266,7 +269,8 @@ async function compute(){
 
   var s0=spRaw[0]||{};
   var sCo=getCol(s0,['Country','Marketplace']);
-  var spF=sCo?spRaw.filter(function(r){return String(r[sCo]).trim()==='United States';}):spRaw;
+  var spF=sCo?spRaw.filter(function(r){return String(r[sCo]).trim().toLowerCase()==='united states';}):spRaw;
+  if(sCo&&spF.length===0)spF=spRaw;
   var sCS=getCol(s0,['Customer Search Term','Search Term']),sMT=getCol(s0,['Match Type']);
   var sTg=getCol(s0,['Targeting','Targeting Expression']),sSp=getCol(s0,['Spend']),sSa=getCol(s0,['7 Day Total Sales','14 Day Total Sales']);
   var spD=spF.map(function(r){return{cst:String(r[sCS]||''),mt:String(r[sMT]||'').toUpperCase().trim(),tg:String(r[sTg]||''),sp:cleanMoney(r[sSp]),sa:cleanMoney(r[sSa])};});
@@ -274,8 +278,8 @@ async function compute(){
   var sbD=[];
   if(sbRaw.length>0){
     var b0=sbRaw[0];
-    var bTg=getCol(b0,['Targeting','Targeting Expression']),bMT=getCol(b0,['Match Type']),bSp=getCol(b0,['Spend']),bSa=getCol(b0,['14 Day Total Sales','7 Day Total Sales']);
-    sbRaw.forEach(function(r){sbD.push({cst:String(r[bTg]||''),mt:String(r[bMT]||'').toUpperCase().trim(),tg:String(r[bTg]||''),sp:cleanMoney(r[bSp]),sa:cleanMoney(r[bSa])});});
+    var bTg=getCol(b0,['Targeting','Targeting Expression']),bMT=getCol(b0,['Match Type']),bSp2=getCol(b0,['Spend']),bSa=getCol(b0,['14 Day Total Sales','7 Day Total Sales']);
+    sbRaw.forEach(function(r){sbD.push({cst:String(r[bTg]||''),mt:String(r[bMT]||'').toUpperCase().trim(),tg:String(r[bTg]||''),sp:cleanMoney(r[bSp2]),sa:cleanMoney(r[bSa])});});
   }
 
   var comb=spD.concat(sbD).map(function(r){
@@ -299,10 +303,7 @@ async function compute(){
   nbSTR.forEach(function(r){if(!cA[r.cst])cA[r.cst]={sp:0,sa:0};cA[r.cst].sp=safeAdd(cA[r.cst].sp,r.sp);cA[r.cst].sa=safeAdd(cA[r.cst].sa,r.sa);});
   var topT=Object.entries(cA).map(function(e){return{cst:e[0],sp:e[1].sp,sa:e[1].sa};}).sort(function(a,b){return b.sp-a.sp;}).slice(0,3);
 
-  function P(v,d){
-    if(isNaN(v)||isNaN(d)||d===0)return '0.00%';
-    return(v/d*100).toFixed(2)+'%';
-  }
+  function P(v,d){if(isNaN(v)||isNaN(d)||d===0)return '0.00%';return(v/d*100).toFixed(2)+'%';}
   function M(v){return '$'+Math.round(isNaN(v)?0:v).toLocaleString();}
   function R(v){return(isNaN(v)?0:v).toFixed(2);}
   function fR(v){var n=cleanMoney(v);return n>0?M(n):v;}
@@ -328,19 +329,12 @@ async function compute(){
     var prevData=sqpPrev?sqpPrev[key]:null;
     var hasCurr=currData&&(currData.imp!==null||currData.pur!==null);
     var hasPrev=prevData&&(prevData.imp!==null||prevData.pur!==null);
-
     if(sqpCurrFile||sqpPrevFile){
       L(t.cst+' — Spend: '+M(t.sp)+'; Revenue: '+M(t.sa));
-      if(hasCurr){
-        L('Impression Share: '+fmtShare(currData.imp)+' | Purchase Share: '+fmtShare(currData.pur));
-      } else {
-        L('Impression Share:  | Purchase Share: ');
-      }
-      if(hasPrev){
-        L('Last Month — Impression Share: '+fmtShare(prevData.imp)+' | Purchase Share: '+fmtShare(prevData.pur));
-      } else {
-        L('Last Month — Impression Share:  | Purchase Share: ');
-      }
+      if(hasCurr){L('Impression Share: '+fmtShare(currData.imp)+' | Purchase Share: '+fmtShare(currData.pur));}
+      else{L('Impression Share:  | Purchase Share: ');}
+      if(hasPrev){L('Last Month — Impression Share: '+fmtShare(prevData.imp)+' | Purchase Share: '+fmtShare(prevData.pur));}
+      else{L('Last Month — Impression Share:  | Purchase Share: ');}
     } else {
       L(t.cst+' — Spend: '+M(t.sp)+'; Revenue: '+M(t.sa)+' — Impression/Purchase Share:');
       L('Last Month:');
@@ -348,7 +342,9 @@ async function compute(){
   });
 
   L('==== SPEND BREAKDOWN ====');
-  L('Branded vs. Non-branded');L('Branded: '+P(bSp,totalPPC));L('Non-branded: '+P(nbSpTot,totalPPC));
+  L('Branded vs. Non-branded');
+  L('Branded: '+P(bSp,totalPPC));
+  L('Non-branded: '+P(nbSpTot,totalPPC));
   L('Product/Category Targeting vs. Keyword Targeting');L('Product/Category: '+P(patSp,pkD));L('Keyword: '+P(kwSp,pkD));
   L('Match Type');L('Exact: '+P(exSp,mtD));L('Phrase: '+P(phSp,mtD));L('Broad: '+P(brSp,mtD));
   L('Auto Campaign vs Manual Campaign');L('Auto: '+P(autoSp,totalPPC));L('Manual: '+P(manSp,totalPPC));
