@@ -76,9 +76,10 @@ body{font-family:var(--sans);background:var(--bg);color:var(--t1);min-height:100
 .err{background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);color:#fca5a5;font-size:11px;padding:9px 11px;border-radius:7px;margin-top:12px;font-family:var(--mono)}
 .out-brand{font-size:16px;font-weight:600;color:var(--t1)}
 .out-mon{font-size:11px;color:var(--t3);margin-top:2px;font-family:var(--mono)}
-.out-box{background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:16px;font-family:var(--mono);font-size:11px;line-height:1.9;color:var(--t1);white-space:pre-wrap;overflow-y:auto;max-height:440px;margin-top:14px}
+.out-box{background:var(--s2);border:1px solid var(--b2);border-radius:10px;padding:16px;font-family:var(--mono);font-size:11px;line-height:1.7;color:var(--t1);white-space:pre-wrap;overflow-y:auto;max-height:440px;margin-top:14px}
 .out-box .sh{color:var(--accent2);font-weight:500}
 .out-box .bl{color:#67e8f9}
+.out-box .sb{color:#a5f3fc}
 .spin{display:inline-block;width:12px;height:12px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:sp .65s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
 </style>
@@ -181,26 +182,17 @@ function fmtShare(val){
   return val.toFixed(2)+'%';
 }
 
-// ── Declining % rule for top NB campaigns ──
-// Start at 5%, step down 1% at a time until >= 3 campaigns qualify.
-// A campaign qualifies if: ROAS > avgROAS AND spend >= (pct% of total NB spend)
-// Hard floor at 1%. If still < 3 at 1%, fill remaining from NB campaigns
-// with spend >= $50, sorted by ROAS descending.
-function topNBCampaigns(nbC, avgROAS, nbSp){
-  var pct=5;
-  var result=[];
+function topNBCampaigns(nbC,avgROAS,nbSp){
+  var pct=5,result=[];
   while(pct>=1){
     var threshold=nbSp*(pct/100);
-    var q=nbC.filter(function(r){return r.roas>avgROAS&&r.spend>=threshold;})
-             .sort(function(a,b){return b.roas-a.roas||b.spend-a.spend;});
+    var q=nbC.filter(function(r){return r.roas>avgROAS&&r.spend>=threshold;}).sort(function(a,b){return b.roas-a.roas||b.spend-a.spend;});
     if(q.length>=3){result=q.slice(0,3);break;}
     pct--;
   }
-  // Fallback: fill remaining slots from NB campaigns with spend >= $50
   if(result.length<3){
     var used=new Set(result.map(function(r){return r.name;}));
-    var fill=nbC.filter(function(r){return r.spend>=50&&!used.has(r.name);})
-               .sort(function(a,b){return b.roas-a.roas||b.spend-a.spend;});
+    var fill=nbC.filter(function(r){return r.spend>=50&&!used.has(r.name);}).sort(function(a,b){return b.roas-a.roas||b.spend-a.spend;});
     result=result.concat(fill).slice(0,3);
   }
   return result;
@@ -230,12 +222,8 @@ async function compute(){
   if(camp.length===0)camp=campRaw;
 
   camp=camp.map(function(r){return{
-    name:String(r[cN]||''),
-    spend:cleanMoney(r[cSp]),
-    sales:cleanMoney(r[cSa]),
-    targetingRaw:String(r[cT]||''),
-    startRaw:r[cD]!=null?r[cD]:'',
-    branded:isBranded(String(r[cN]||''))
+    name:String(r[cN]||''),spend:cleanMoney(r[cSp]),sales:cleanMoney(r[cSa]),
+    targetingRaw:String(r[cT]||''),startRaw:r[cD]!=null?r[cD]:'',branded:isBranded(String(r[cN]||''))
   };});
 
   var totalPPC=camp.reduce(function(s,r){return safeAdd(s,r.spend);},0);
@@ -251,15 +239,12 @@ async function compute(){
   var nbSp=nbC.reduce(function(s,r){return safeAdd(s,r.spend);},0);
   var avgROAS=nbSp>0?nbSa/nbSp:0;
 
-  // Top NB — declining % rule
   var topNB=topNBCampaigns(nbC,avgROAS,nbSp);
 
-  // Worst NB
   var wNB=nbC.filter(function(r){return r.spend>=50;}).sort(function(a,b){return a.roas-b.roas||b.spend-a.spend;});
   if(wNB.length<3){var u2=new Set(wNB.map(function(r){return r.name;}));var f2=nbC.filter(function(r){return r.spend>=25&&!u2.has(r.name);}).sort(function(a,b){return a.roas-b.roas;});wNB=wNB.concat(f2).slice(0,3);}
   else wNB=wNB.slice(0,3);
 
-  // New campaigns
   var calS=new Date(calloutYear,calloutMonth,1);
   var calE=new Date(calloutYear,calloutMonth+1,0,23,59,59);
   var calLabel=MNS[calloutMonth]+' '+calloutYear;
@@ -276,10 +261,8 @@ async function compute(){
     });
   }
 
-  // NB campaign names set for STR filtering
   var nbCampNames=new Set(nbC.map(function(r){return r.name.toLowerCase().trim();}));
 
-  // SP STR
   var s0=spRaw[0]||{};
   var sCo=getCol(s0,['Country','Marketplace']);
   var spF=sCo?spRaw.filter(function(r){return String(r[sCo]).trim().toLowerCase()==='united states';}):spRaw;
@@ -290,7 +273,6 @@ async function compute(){
   var spD=spF.filter(function(r){return nbCampNames.has(String(r[sCN]||'').toLowerCase().trim());})
     .map(function(r){return{cst:String(r[sCS]||''),mt:String(r[sMT]||'').toUpperCase().trim(),tg:String(r[sTg]||''),sp:cleanMoney(r[sSp]),sa:cleanMoney(r[sSa])};});
 
-  // SB STR
   var sbD=[];
   if(sbRaw.length>0){
     var b0=sbRaw[0];
@@ -328,20 +310,24 @@ async function compute(){
 
   var cBullets=coreItems.filter(function(b){return b.trim();});
   var aBullets=actionItems.filter(function(b){return b.trim();});
+
+  // ── Output builder ──
   var out='';
-  function L(s){out+=(s===undefined?'':s)+'\n\n';}
+  function SEC(s){out+=s+'\n';}     // section header, no blank line
+  function B(s){out+='* '+s+'\n';}  // top-level bullet
+  function SB(s){out+='   * '+s+'\n';} // sub-bullet
 
-  L('==== CORE STRATEGIES ====');
-  if(cBullets.length===0)L('• N/A');else cBullets.forEach(function(b){L('• '+b.trim());});
+  SEC('==== CORE STRATEGIES ====');
+  if(cBullets.length===0)B('N/A');else cBullets.forEach(function(b){B(b.trim());});
 
-  L('==== PACING ====');
-  L('Monthly Goal: '+intake.kpiTarget);
-  L('Forecasted Revenue: '+fR(intake.forecastRevenue));
-  L('Actual Monthly Outcome: '+intake.kpiActual);
-  L('Actual Revenue: '+fR(intake.actualRevenue));
-  L('Total Non-branded ROAS: '+R(avgROAS));
+  SEC('==== PACING ====');
+  B('Monthly Goal: '+intake.kpiTarget);
+  B('Forecasted Revenue: '+fR(intake.forecastRevenue));
+  B('Actual Monthly Outcome: '+intake.kpiActual);
+  B('Actual Revenue: '+fR(intake.actualRevenue));
+  B('Total Non-branded ROAS: '+R(avgROAS));
 
-  L('==== TOP SPENDING SEARCH TERMS (NON-BRANDED ONLY) AND PURCHASE SHARE ====');
+  SEC('==== TOP SPENDING SEARCH TERMS (NON-BRANDED ONLY) AND PURCHASE SHARE ====');
   topT.forEach(function(t){
     var key=t.cst.toLowerCase().trim();
     var currData=sqpCurr?sqpCurr[key]:null;
@@ -349,37 +335,59 @@ async function compute(){
     var hasCurr=currData&&(currData.imp!==null||currData.pur!==null);
     var hasPrev=prevData&&(prevData.imp!==null||prevData.pur!==null);
     if(sqpCurrFile||sqpPrevFile){
-      L(t.cst+' — Spend: '+M(t.sp)+'; Revenue: '+M(t.sa));
-      if(hasCurr){L('Impression Share: '+fmtShare(currData.imp)+' | Purchase Share: '+fmtShare(currData.pur));}
-      else{L('Impression Share:  | Purchase Share: ');}
-      if(hasPrev){L('Last Month — Impression Share: '+fmtShare(prevData.imp)+' | Purchase Share: '+fmtShare(prevData.pur));}
-      else{L('Last Month — Impression Share:  | Purchase Share: ');}
+      var currLine=t.cst+' — Spend: '+M(t.sp)+'; Revenue: '+M(t.sa);
+      if(hasCurr){
+        var parts=[];
+        if(currData.imp!==null)parts.push('Impression Share: '+fmtShare(currData.imp));
+        if(currData.pur!==null)parts.push('Purchase Share: '+fmtShare(currData.pur));
+        if(parts.length)currLine+=' — '+parts.join(' | ');
+      }
+      B(currLine);
+      if(hasPrev){
+        var prevParts=[];
+        if(prevData.imp!==null)prevParts.push('Impression Share: '+fmtShare(prevData.imp));
+        if(prevData.pur!==null)prevParts.push('Purchase Share: '+fmtShare(prevData.pur));
+        if(prevParts.length)SB('Last Month: '+prevParts.join(' | '));
+      } else {
+        SB('Last Month:');
+      }
     } else {
-      L(t.cst+' — Spend: '+M(t.sp)+'; Revenue: '+M(t.sa)+' — Impression/Purchase Share:');
-      L('Last Month:');
+      B(t.cst+' — Spend: '+M(t.sp)+'; Revenue: '+M(t.sa)+' — Impression/Purchase Share:');
+      SB('Last Month:');
     }
   });
 
-  L('==== SPEND BREAKDOWN ====');
-  L('Branded vs. Non-branded');
-  L('Branded: '+P(bSp,totalPPC));
-  L('Non-branded: '+P(nbSpTot,totalPPC));
-  L('Product/Category Targeting vs. Keyword Targeting');L('Product/Category: '+P(patSp,pkD));L('Keyword: '+P(kwSp,pkD));
-  L('Match Type');L('Exact: '+P(exSp,mtD));L('Phrase: '+P(phSp,mtD));L('Broad: '+P(brSp,mtD));
-  L('Auto Campaign vs Manual Campaign');L('Auto: '+P(autoSp,totalPPC));L('Manual: '+P(manSp,totalPPC));
-  if(dsp>0){L('DSP vs PPC');L('DSP: '+P(dsp,totalAd));L('PPC: '+P(totalPPC,totalAd));}
+  SEC('==== SPEND BREAKDOWN ====');
+  B('Branded vs. Non-branded');
+  SB('Branded: '+P(bSp,totalPPC));
+  SB('Non-branded: '+P(nbSpTot,totalPPC));
+  B('Product/Category Targeting vs. Keyword Targeting');
+  SB('Product/Category: '+P(patSp,pkD));
+  SB('Keyword: '+P(kwSp,pkD));
+  B('Match Type');
+  SB('Exact: '+P(exSp,mtD));
+  SB('Phrase: '+P(phSp,mtD));
+  SB('Broad: '+P(brSp,mtD));
+  B('Auto Campaign vs Manual Campaign');
+  SB('Auto: '+P(autoSp,totalPPC));
+  SB('Manual: '+P(manSp,totalPPC));
+  if(dsp>0){
+    B('DSP vs PPC');
+    SB('DSP: '+P(dsp,totalAd));
+    SB('PPC: '+P(totalPPC,totalAd));
+  }
 
-  L('==== TOP NON-BRANDED CAMPAIGNS ====');
-  topNB.forEach(function(c){L(c.name+': ROAS '+R(c.roas)+' | Spend: '+M(c.spend));});
+  SEC('==== TOP NON-BRANDED CAMPAIGNS ====');
+  topNB.forEach(function(c){B(c.name+': ROAS '+R(c.roas)+' | Spend: '+M(c.spend));});
 
-  L('==== WORST NON-BRANDED CAMPAIGNS ====');
-  wNB.forEach(function(c){L(c.name+': ROAS '+R(c.roas)+' | Spend: '+M(c.spend));});
+  SEC('==== WORST NON-BRANDED CAMPAIGNS ====');
+  wNB.forEach(function(c){B(c.name+': ROAS '+R(c.roas)+' | Spend: '+M(c.spend));});
 
-  L('==== NEW CAMPAIGNS CREATED DURING THE MONTH ====');
-  if(newCamps.length===0)L('None');else newCamps.forEach(function(n){L(n);});
+  SEC('==== NEW CAMPAIGNS CREATED DURING THE MONTH ====');
+  if(newCamps.length===0)B('None');else newCamps.forEach(function(n){B(n);});
 
-  L('==== STRATEGIC ACTION ITEMS FOR NEXT MONTH ====');
-  if(aBullets.length===0)L('• N/A');else aBullets.forEach(function(b){L('• '+b.trim());});
+  SEC('==== STRATEGIC ACTION ITEMS FOR NEXT MONTH ====');
+  if(aBullets.length===0)B('N/A');else aBullets.forEach(function(b){B(b.trim());});
 
   return{output:out.trim(),calloutMonthLabel:calLabel};
 }
@@ -468,7 +476,10 @@ function step2(){
 }
 
 function hl(text){
-  return esc(text).replace(/(====.*?====)/g,'<span class="sh">$1</span>').replace(/(^• )/gm,'<span class="bl">• </span>');
+  return esc(text)
+    .replace(/(====.*?====)/g,'<span class="sh">$1</span>')
+    .replace(/(^\* )/gm,'<span class="bl">* </span>')
+    .replace(/(^   \* )/gm,'<span class="sb">   * </span>');
 }
 
 function step3(){
