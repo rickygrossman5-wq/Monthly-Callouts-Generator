@@ -270,35 +270,49 @@ async function compute(){
   var sCS=getCol(s0,['Customer Search Term','Search Term']),sMT=getCol(s0,['Match Type']);
   var sTg=getCol(s0,['Targeting','Targeting Expression']),sSp=getCol(s0,['Spend']),sSa=getCol(s0,['7 Day Total Sales','14 Day Total Sales']);
   var sCN=getCol(s0,['Campaign Name','Campaign name']);
-  var spD=spF.filter(function(r){return nbCampNames.has(String(r[sCN]||'').toLowerCase().trim());})
+
+  // All SP rows (branded + NB) — used for match type and PAT/KW splits
+  var spAll=spF.map(function(r){return{cst:String(r[sCS]||''),mt:String(r[sMT]||'').toUpperCase().trim(),tg:String(r[sTg]||''),sp:cleanMoney(r[sSp]),sa:cleanMoney(r[sSa])};});
+  // NB-only SP rows — used for top search terms
+  var spNB=spF.filter(function(r){return nbCampNames.has(String(r[sCN]||'').toLowerCase().trim());})
     .map(function(r){return{cst:String(r[sCS]||''),mt:String(r[sMT]||'').toUpperCase().trim(),tg:String(r[sTg]||''),sp:cleanMoney(r[sSp]),sa:cleanMoney(r[sSa])};});
 
-  var sbD=[];
+  var sbAll=[],sbNB=[];
   if(sbRaw.length>0){
     var b0=sbRaw[0];
     var bCN=getCol(b0,['Campaign Name','Campaign name']);
     var bTg=getCol(b0,['Targeting','Targeting Expression']),bMT=getCol(b0,['Match Type']),bSp2=getCol(b0,['Spend']),bSa=getCol(b0,['14 Day Total Sales','7 Day Total Sales']);
-    sbRaw.filter(function(r){return nbCampNames.has(String(r[bCN]||'').toLowerCase().trim());})
-      .forEach(function(r){sbD.push({cst:String(r[bTg]||''),mt:String(r[bMT]||'').toUpperCase().trim(),tg:String(r[bTg]||''),sp:cleanMoney(r[bSp2]),sa:cleanMoney(r[bSa])});});
+    sbRaw.forEach(function(r){
+      var row={cst:String(r[bTg]||''),mt:String(r[bMT]||'').toUpperCase().trim(),tg:String(r[bTg]||''),sp:cleanMoney(r[bSp2]),sa:cleanMoney(r[bSa])};
+      sbAll.push(row);
+      if(nbCampNames.has(String(r[bCN]||'').toLowerCase().trim()))sbNB.push(row);
+    });
   }
 
-  var comb=spD.concat(sbD).map(function(r){
-    var t=r.tg.toLowerCase(),c=r.cst.toLowerCase();
-    var isPAT=ASIN.test(t)||t.includes('asin=')||t.includes('category=')||ASIN.test(c);
-    return{cst:r.cst,mt:r.mt,tg:r.tg,sp:r.sp,sa:r.sa,isPAT:isPAT,isKW:MAN.has(r.mt)&&!isPAT};
-  });
+  function mapComb(rows){
+    return rows.map(function(r){
+      var t=r.tg.toLowerCase(),c=r.cst.toLowerCase();
+      var isPAT=ASIN.test(t)||t.includes('asin=')||t.includes('category=')||ASIN.test(c);
+      return{cst:r.cst,mt:r.mt,tg:r.tg,sp:r.sp,sa:r.sa,isPAT:isPAT,isKW:MAN.has(r.mt)&&!isPAT};
+    });
+  }
 
-  var patSp=comb.filter(function(r){return r.isPAT;}).reduce(function(s,r){return safeAdd(s,r.sp);},0);
-  var kwSp=comb.filter(function(r){return r.isKW;}).reduce(function(s,r){return safeAdd(s,r.sp);},0);
+  // combAll = all campaigns → match type, PAT/KW splits
+  var combAll=mapComb(spAll.concat(sbAll));
+  // combNB = NB campaigns only → top search terms
+  var combNB=mapComb(spNB.concat(sbNB));
+
+  var patSp=combAll.filter(function(r){return r.isPAT;}).reduce(function(s,r){return safeAdd(s,r.sp);},0);
+  var kwSp=combAll.filter(function(r){return r.isKW;}).reduce(function(s,r){return safeAdd(s,r.sp);},0);
   var pkD=safeAdd(patSp,kwSp);
-  var mSTR=comb.filter(function(r){return MAN.has(r.mt);});
+  var mSTR=combAll.filter(function(r){return MAN.has(r.mt);});
   var mtD=mSTR.reduce(function(s,r){return safeAdd(s,r.sp);},0);
   var exSp=mSTR.filter(function(r){return r.mt==='EXACT';}).reduce(function(s,r){return safeAdd(s,r.sp);},0);
   var phSp=mSTR.filter(function(r){return r.mt==='PHRASE';}).reduce(function(s,r){return safeAdd(s,r.sp);},0);
   var brSp=mSTR.filter(function(r){return r.mt==='BROAD';}).reduce(function(s,r){return safeAdd(s,r.sp);},0);
 
   var bLow=intake.brand.toLowerCase().replace(/[-\s]/g,'');
-  var nbSTR=comb.filter(function(r){var c=r.cst.toLowerCase().replace(/[-\s]/g,'');return !c.includes(bLow)&&!ASIN_X.test(r.cst)&&r.cst.trim()!=='';});
+  var nbSTR=combNB.filter(function(r){var c=r.cst.toLowerCase().replace(/[-\s]/g,'');return !c.includes(bLow)&&!ASIN_X.test(r.cst)&&r.cst.trim()!=='';});
   var cA={};
   nbSTR.forEach(function(r){if(!cA[r.cst])cA[r.cst]={sp:0,sa:0};cA[r.cst].sp=safeAdd(cA[r.cst].sp,r.sp);cA[r.cst].sa=safeAdd(cA[r.cst].sa,r.sa);});
   var topT=Object.entries(cA).map(function(e){return{cst:e[0],sp:e[1].sp,sa:e[1].sa};}).sort(function(a,b){return b.sp-a.sp;}).slice(0,3);
